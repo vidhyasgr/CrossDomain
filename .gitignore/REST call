@@ -1,0 +1,149 @@
+package com.kianaanalytics.location.rest;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kianaanalytics.location.recentPosition.LocationAPIReceiverDTO;
+import com.kianaanalytics.location.recentPosition.LocationAPIRecentPositionDB;
+import com.kianaanalytics.location.recentPosition.LocationAPISenderDTO;
+import com.kianaanalytics.location.recentPosition.RecentPositionDTO;
+
+import com.fasterxml.jackson.databind.JsonNode;
+
+
+
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+
+/**
+ * Created by vidhyasagar on 08.08.17.
+ */
+@Path("/clientMacPosition")
+
+public class LocationAPIRESTOrganizer {
+
+    LocationAPIRecentPositionDB locationAPIRecentPositionDB = new LocationAPIRecentPositionDB();
+
+
+    @Path("/get/{customerProjectId}")
+    @POST
+//    @Consumes({ MediaType.APPLICATION_JSON })
+    @Produces({ MediaType.APPLICATION_JSON , MediaType.APPLICATION_XML })
+    public Response gettingRecentPosition(LocationAPIReceiverDTO locationAPIReceiverDTO,
+                                          @PathParam("customerProjectId") int customerProjectId) {
+
+        JsonNode jsonNodeToSend = null;
+
+        try {
+
+            System.out.println("customer projectId to check for LocationAPI " + customerProjectId);
+
+            System.out.println("clientMac to check for LocationAPI " + locationAPIReceiverDTO.getClientMac());
+
+
+            System.out.println("checking the size of LocationAPIDB " + locationAPIRecentPositionDB.
+                    getCustomerProjectIdClientMacWithRecentPosDBInstance().size());
+
+            if(locationAPIRecentPositionDB.
+                    getCustomerProjectIdClientMacWithRecentPosDBInstance().
+                    containsKey(customerProjectId)) {
+
+
+                if(locationAPIRecentPositionDB.
+                        getCustomerProjectIdClientMacWithRecentPosDBInstance().
+                        get(customerProjectId).containsKey(locationAPIReceiverDTO.getClientMac())) {
+
+
+                    RecentPositionDTO recentPositionDTO = locationAPIRecentPositionDB.
+                            getCustomerProjectIdClientMacWithRecentPosDBInstance().
+                            get(customerProjectId).get(locationAPIReceiverDTO.getClientMac());
+
+                    LocationAPISenderDTO locationAPISenderDTO
+                            = new LocationAPISenderDTO();
+
+                    locationAPISenderDTO.setClientMac(recentPositionDTO.getClientMac());
+                    locationAPISenderDTO.setFloorName("");
+                    locationAPISenderDTO.setLatitude(recentPositionDTO.getLat());
+                    locationAPISenderDTO.setLongitude(recentPositionDTO.getLng());
+                    locationAPISenderDTO.setHall_ID(recentPositionDTO.getFloorId());
+
+
+                    jsonNodeToSend = convertingPositionsToJsonNode(locationAPISenderDTO);
+
+
+
+
+
+                    return Response.ok().entity(jsonNodeToSend.toString()).header("Access-Control-Allow-Origin", "*").build();
+
+
+
+
+                }else{
+                    return Response.status(501).build();
+
+            }
+
+            }else{
+
+                return Response.status(502).build();
+
+            }
+
+
+
+
+        }  catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+
+            return Response.status(500).build();
+
+        }
+
+
+    }
+
+
+    /**
+     * It converts list Of position to json for REST call.
+     *
+     * @param locationAPIDTO
+     * @return
+     */
+
+    private JsonNode convertingPositionsToJsonNode(LocationAPISenderDTO locationAPIDTO) {
+
+        ObjectMapper mapper = new ObjectMapper();
+        String jsonInString = null;
+        try {
+            jsonInString = mapper.writeValueAsString(locationAPIDTO);
+        } catch (IOException e) {
+            StringWriter error = new StringWriter();
+            e.printStackTrace(new PrintWriter(error));
+        }
+
+        System.out.println(jsonInString);
+
+        ObjectMapper mapperJsonConvert = new ObjectMapper();
+        JsonNode actualObj = null;
+
+        try {
+
+            actualObj = mapperJsonConvert.readTree(jsonInString);
+
+        } catch (JsonProcessingException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        return actualObj;
+    }
+
+}
